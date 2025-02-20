@@ -538,8 +538,9 @@ def save_current_scripts():
 
 
 def update_log_with_effect(display_area):
+
     try:
-        with open('resources\\update_log.txt', 'r', encoding='utf-8') as file:
+        with open(get_resource_path('update_log.txt'), 'r', encoding='utf-8') as file:
             content = file.read()
 
         # 获取电脑基本信息
@@ -816,7 +817,7 @@ left_widget_style = """
     QScrollBar::handle:horizontal {
         background: #BBBBBB;
         min-width: 20px;
-        border-radius: 5px;
+        border-radius: 5px; 
     }
     QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
         background: none;

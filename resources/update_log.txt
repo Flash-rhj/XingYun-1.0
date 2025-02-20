@@ -64,3 +64,14 @@
 
 
                               --Rhj_flash
+---------------------github-----------------------
+git init
+git clone repo
+git status
+git log
+git remote add origin xxx
+git remote remove origin xxx
+git add folder/file
+git commit -m "xxx"
+git push origin master
+git pull origin master
