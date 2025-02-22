@@ -1,18 +1,20 @@
 import sys
 import os
+import weakref
 from datetime import datetime
-from PyQt5.QtGui import QColor, QBrush
-from PyQt5.QtCore import Qt, QStringListModel, QTranslator, QCoreApplication, QPropertyAnimation, QPoint, QEvent
+from PyQt5.QtGui import QColor, QBrush, QFontMetrics, QPalette
+from PyQt5.QtCore import Qt, QStringListModel, QTranslator, QCoreApplication, QPropertyAnimation, QPoint, QEvent, QTimer
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QListWidget,
     QLineEdit, QCompleter, QTextEdit, QPushButton, QFileDialog, QMessageBox,
-    QInputDialog, QDialog, QListWidgetItem, QDesktopWidget, QMenu, QSizePolicy
+    QInputDialog, QDialog, QListWidgetItem, QDesktopWidget, QMenu, QSizePolicy, QStyledItemDelegate,
+    QStyleOptionViewItem, QStyle
 )
 from PyQt5.QtCore import QRect, QEasingCurve
 from function import *
-from PyQt5.QtCore import QEasingCurve, QPropertyAnimation
-
+from PyQt5.QtCore import QVariantAnimation, QEasingCurve
+from PyQt5.QtGui import QFontMetrics, QPainter
 
 def animate_search_edit_height(target_height):
     animation = QPropertyAnimation(search_edit, b"maximumHeight")
@@ -190,7 +192,7 @@ def create_main_window():
     icon = QIcon(icon_path)
     main_window.setWindowIcon(icon)
 
-    global list_widget, search_edit, completer_model, display_area, create_script_button, remove_selected_button, clear_button, update_log_button
+
 
     # 添加状态栏
     status_bar = QLabel(tr(">>> 准备就绪🚀"))
@@ -327,20 +329,17 @@ def create_main_window():
     for index, script in enumerate(scripts):
         item = QListWidgetItem(script['name'])
         item.setData(Qt.UserRole, script)
-
         # 根据索引号设置颜色
         if index % 2 == 0:
             item.setBackground(QColor("#F0F0F0"))  # 偶数行 - 浅灰
         else:
             item.setBackground(QColor("#D9D9D9"))  # 奇数行 - 稍深
-
         list_widget.addItem(item)
         completer_model.insertRow(0)
         completer_model.setData(completer_model.index(0), script['name'])
 
-        # 设置右键菜单
-        setup_context_menu(list_widget, display_area)
-
+    # 设置右键菜单
+    setup_context_menu(list_widget, display_area)
     # 显示欢迎界面
     display_welcome_screen(display_area)
     update_item_colors()  # 确保软件启动时颜色正确
@@ -676,27 +675,24 @@ list_widget_style = """
     }
     QListWidget::item {
         padding: 10px;
+        white-space: nowrap;  /* 防止文本换行 */
     }
     QListWidget::item:hover {
-        background-color: #C0C0C0;  /* ✅ 悬停时颜色加深 */
+        background-color: #C0C0C0;
         border-radius: 8px;
     }
     QListWidget::item:selected {
-        background-color: #A0A0A0;  /* ✅ 选中时颜色更深 */
+        background-color: #A0A0A0;
         color: #000000;
         font-weight: bold;
     }
-        QListWidget::item:focus {
-        outline: none;  /* 移除默认的虚线框 */
+    QListWidget::item:focus {
+        outline: none;
     }
     QListWidget:focus {
-        outline: none;  /* 移除整个列表的虚线框 */
+        outline: none;
     }
-    
-    
-
 """
-
 
 button_style = """
     QPushButton {
@@ -856,104 +852,7 @@ button_style = """
 """
 
 
-class SmoothListWidget(QListWidget):
-    def __init__(self, status_bar, parent=None):
-        super().__init__(parent)
-        self.status_bar = status_bar  # ✅ 传入状态栏
-        self.setDragDropMode(QListWidget.InternalMove)
-        self.setSelectionMode(QListWidget.SingleSelection)
-        self.setAcceptDrops(True)
-        self.setDragEnabled(True)
-        self.setDropIndicatorShown(True)
-        self.setDefaultDropAction(Qt.MoveAction)
-        self.setVerticalScrollMode(QListWidget.ScrollPerPixel)
-        self.setHorizontalScrollMode(QListWidget.ScrollPerPixel)
-        self.setMouseTracking(True)  # ✅ 启用鼠标追踪
 
-        # 连接信号以处理拖放事件
-        self.model().rowsMoved.connect(self.animate_rows_moved)
-
-        # 设置样式表
-        self.setStyleSheet("""
-            QListWidget {
-                border: 1px solid #CCCCCC;
-                border-radius: 8px;
-                background-color: #FFFFFF;
-                font-size: 14px;
-                color: #444444;
-            }
-            QListWidget::item {
-                padding: 10px;
-                border-radius: 5px;  /* 设置项目的圆角 */
-            }
-            QListWidget::item:selected {
-                background-color: #B0B0B0;  /* 选中时颜色更深 */
-                color: #000000;  /* 选中时字体变黑 */
-                font-weight: bold;
-                border-radius: 10px;  /* 选中时项目的圆角 */
-            }
-            QListWidget::item:hover {
-                background-color: #E0E0E0;  /* 悬停时颜色 */
-                border-radius: 10px;  /* 悬停时项目的圆角 */
-            }
-            QScrollBar:vertical, QScrollBar:horizontal {
-                border: none;
-                background: #F0F0F0;
-                width: 10px;
-                height: 10px;
-                margin: 0px;  /* 解决错位问题 */
-                border-radius: 5px;
-            }
-            QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
-                background: #BBBBBB;
-                min-height: 20px;
-                min-width: 20px;
-                border-radius: 5px;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
-                background: none;
-            }
-        """)
-
-    def animate_search_edit_height(target_height):
-        animation = QPropertyAnimation(search_edit, b"minimumHeight")
-        animation.setDuration(10)  # 持续300毫秒
-        animation.setStartValue(search_edit.height())
-        animation.setEndValue(target_height)
-        animation.setEasingCurve(QEasingCurve.InOutQuad)  # 添加缓和曲线，使动画更顺滑
-        animation.start()
-        # 保存引用，防止动画被垃圾回收
-        search_edit.animation = animation
-
-    def startDrag(self, supportedActions):
-        # 在开始拖动时添加一些视觉效果
-        item = self.currentItem()
-        if item:
-            item.setBackground(QColor(200, 200, 200, 150))  # 半透明背景
-        super().startDrag(supportedActions)
-
-    def dropEvent(self, event):
-        super().dropEvent(event)
-        # 在拖放完成后恢复项目的外观
-        for index in range(self.count()):
-            item = self.item(index)
-            item.setBackground(QColor(255, 255, 255))  # 恢复为白色背景
-
-    def mouseMoveEvent(self, event):
-        item = self.itemAt(event.pos())
-        if item:
-            script_data = item.data(Qt.UserRole)
-            script_name = script_data.get('name')
-            script_value = script_data.get('value')
-            script_type = script_data.get('type')
-            if script_type == 'url':
-                self.status_bar.setText(f"🌐[{script_name}]  🔗[{script_value}]")
-            elif script_type == 'file':
-                self.status_bar.setText(f"🖥️[{script_name}]  📂[{script_value}]")
-        else:
-            self.status_bar.setText(">>> 准备就绪🚀")
-        super().mouseMoveEvent(event)
 
 
 
@@ -1055,33 +954,145 @@ class CreateScriptDialog(QDialog):
             QMessageBox.critical(self, tr('错误'), f"{tr('创建软件脚本时发生错误')}: {e}")
 
 
+
 class SmoothListWidget(QListWidget):
-    def __init__(self, parent=None):
+    def __init__(self, status_bar, parent=None):
         super().__init__(parent)
-        self.setMouseTracking(True)  # ✅ 启用鼠标追踪
-        self.setStyleSheet(list_widget_style)
+        self.status_bar = status_bar
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setMouseTracking(True)
+        self.hovered_item = None  # 当前鼠标悬停的项
 
-    def event(self, event):
-        """监听鼠标悬停，更新状态栏"""
-        if event.type() == QEvent.HoverMove:
-            item = self.itemAt(event.pos())
-            if item:
-                script_data = item.data(Qt.UserRole)
-                if script_data:
-                    script_name = script_data.get('name', '未知脚本')
-                    script_path = script_data.get('value', '未知路径')
-                    script_type = script_data.get('type', 'file')
+        # 定时器用于更新滚动偏移
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.updateScrollingOffsets)
+        self.timer.start(30)  # 每30毫秒更新一次
 
-                    # ✅ 根据类型显示不同图标
-                    if script_type == "url":
-                        status_bar.setText(f"🌐 {script_name} | 🔗 {script_path}")
-                    else:
-                        status_bar.setText(f"🖥️ {script_name} | 📂 {script_path}")
+        # 连接模型信号
+        self.model().rowsInserted.connect(self.on_rows_inserted)
+        # rowsRemoved 无需做额外操作
+
+        # 设置自定义委托，利用滚动数据绘制文本
+        self.setItemDelegate(ScrollingItemDelegate(self))
+
+    def updateScrollingOffsets(self):
+        for i in range(self.count()):
+            item = self.item(i)
+            # 如果文本超出且当前项不处于鼠标悬停状态，则更新滚动数据
+            if self.is_text_overflow(item) and item != self.hovered_item:
+                fm = QFontMetrics(self.font())
+                text_width = fm.horizontalAdvance(item.text())
+                available_width = self.viewport().width() - 20  # 预留边距
+                max_offset = text_width - available_width
+                if max_offset <= 0:
+                    continue
+                # 尝试从额外数据中获取滚动数据，没有则初始化为 [0, 1]
+                scrolling_data = item.data(Qt.UserRole + 1)
+                if scrolling_data is None:
+                    scrolling_data = [0, 1]
+                offset, direction = scrolling_data
+                step = 1  # 每次移动1个像素，可调整滚动速度
+                offset += step * direction
+                # 达到边界时反转方向
+                if offset >= max_offset:
+                    offset = max_offset
+                    direction = -1
+                elif offset <= 0:
+                    offset = 0
+                    direction = 1
+                item.setData(Qt.UserRole + 1, [offset, direction])
+        self.viewport().update()  # 触发重绘
+
+    def is_text_overflow(self, item):
+        fm = QFontMetrics(self.font())
+        text_width = fm.horizontalAdvance(item.text())
+        available_width = self.viewport().width() - 20
+        return text_width > available_width
+
+    def mouseMoveEvent(self, event):
+        item = self.itemAt(event.pos())
+        if item:
+            self.hovered_item = item
+            # 更新状态栏显示
+            script_data = item.data(Qt.UserRole)
+            if script_data:
+                script_name = script_data.get('name', '未知脚本')
+                script_path = script_data.get('value', '未知路径')
+                script_type = script_data.get('type', 'file')
+                self.status_bar.setText(
+                    f"🌐 {script_name} | 🔗 {script_path}" if script_type == "url"
+                    else f"🖥️ {script_name} | 📂 {script_path}")
+            # 当鼠标悬停时，可选择不更新滚动数据，从而暂停运动
+            self.setToolTip(item.text() if self.is_text_overflow(item) else "")
+        else:
+            self.hovered_item = None
+            self.status_bar.setText(">>> 准备就绪🚀")
+            self.setToolTip("")
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        self.hovered_item = None
+        self.setToolTip("")
+        self.status_bar.setText(">>> 准备就绪🚀")
+        super().leaveEvent(event)
+
+    def on_rows_inserted(self, parent, start, end):
+        for i in range(start, end + 1):
+            item = self.item(i)
+            if self.is_text_overflow(item):
+                # 初始化额外数据存储滚动信息
+                item.setData(Qt.UserRole + 1, [0, 1])
+
+
+class ScrollingItemDelegate(QStyledItemDelegate):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.list_widget = parent
+
+    def paint(self, painter, option, index):
+        item = self.list_widget.itemFromIndex(index)
+        if item and self.list_widget.is_text_overflow(item):
+            # 初始化样式选项
+            opt = QStyleOptionViewItem(option)
+            self.initStyleOption(opt, index)
+            original_text = opt.text  # 保存原始文本
+            opt.text = ""  # 清空 opt.text，防止默认绘制
+
+            style = QApplication.style()
+
+            # --- 强制覆盖选中状态的背景颜色 ---
+            if opt.state & QStyle.State_Selected:
+                # 选中项的背景颜色设置为深灰色
+                painter.fillRect(opt.rect, QColor("#A0A0A0"))  # 深灰色
+            elif opt.state & QStyle.State_MouseOver:
+                # 悬停项的背景颜色设置为浅灰色
+                painter.fillRect(opt.rect, QColor("#C0C0C0"))  # 浅灰色
             else:
-                update_status_bar("")  # ✅ 鼠标移开时重置状态栏
+                # 未选中项的背景颜色根据行号设置
+                painter.fillRect(opt.rect, QColor("#F5F5F5" if index.row() % 2 == 0 else "#E8E8E8"))
 
-        return super().event(event)
+            # --- 强制覆盖文本颜色 ---
+            painter.save()
+            painter.setClipRect(opt.rect)
+            if opt.state & QStyle.State_Selected:
+                painter.setPen(QColor("#000000"))  # 选中时文本为黑色
+            else:
+                painter.setPen(QColor("#444444"))  # 未选中时文本为深灰色
 
+            # --- 绘制文本 ---
+            textRect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, self.list_widget)
+            scrolling_data = item.data(Qt.UserRole + 1)
+            offset = scrolling_data[0] if scrolling_data else 0
+            textRect.setX(textRect.x() - offset)
+            painter.drawText(textRect, opt.displayAlignment, original_text)
+            painter.restore()
+
+            # --- 绘制焦点框（如果需要）---
+            if opt.state & QStyle.State_HasFocus:
+                style.drawPrimitive(QStyle.PE_FrameFocusRect, opt, painter, self.list_widget)
+        else:
+            # 其他项使用默认绘制
+            super().paint(painter, option, index)
 
 def show_create_script_dialog(parent, list_widget, display_area, completer_model):
     dialog = CreateScriptDialog(parent, list_widget, display_area, completer_model)
