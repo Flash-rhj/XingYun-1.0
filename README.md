@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-repo
 =======
 # Python脚本小工具（python script）
 # 欢迎使用行云！
