@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-repo
 =======
 # Python脚本小工具（python script）
 # 欢迎使用行云！
@@ -59,4 +57,3 @@ Rhj_flash
 加载完毕...
 
 02-21 16:28:10 : 执行打开>>>>>
->>>>>>> dceddaa519f49f58a02c46dfc33c171b6582ce36
