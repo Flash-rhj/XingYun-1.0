@@ -15,6 +15,11 @@
         "value": "https://grok.com/chat/d82aafbe-fc53-43ed-a500-2dc0eac37d7c"
     },
     {
+        "name": "残血deep seek",
+        "type": "url",
+        "value": "https://www.wenxiaobai.com/chat/tourist"
+    },
+    {
         "name": "Le Chat - Mistral AI  (VPN节点开伦敦)",
         "type": "url",
         "value": "https://chat.mistral.ai/chat/58a5d6c2-3d5c-443b-8fb5-1934bc293186"
@@ -113,5 +118,10 @@
         "name": "3DM_游戏查询🎮",
         "type": "url",
         "value": "https://www.3dmgame.com/"
+    },
+    {
+        "name": "在在在在在在在在在在在在在在在在在在",
+        "type": "url",
+        "value": "xxxx"
     }
 ]
